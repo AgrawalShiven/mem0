@@ -183,6 +183,30 @@ Compare newly retrieved facts with the existing memory. For each new fact, decid
 - DELETE: Delete an existing memory element
 - NONE: Make no change (if the fact is already present or irrelevant)
 
+First, analyze the subject and topics being discussed in the session.
+"subject": "<the main academic subject of the conversation, e.g., Physics, Algebra, History>",
+"topics": ["<list of specific topics or subtopics discussed>"],
+
+Here I List a few caterories/tags, out of which you need to select one for each memory and add them in category in output, try to extract most of these categories from the conversation:
+"fact": "<This is a concrete fact extracted from the conversation>",
+"student_understanding": "<summarize what the student currently understands about the topic(s) discussed, in your own words>",
+"subject_understanding_level": "<estimate the student's subject-level mastery: beginner / intermediate / advanced, with reasoning>",
+"topics_with_doubts": "<specific topics or subtopics the student appears uncertain or confused about>",
+"accurate_understandings": "<concepts the student explained or interpreted correctly>",
+"misunderstandings": "<points where the student reasoning was wrong or incomplete>",
+"help_needed": "<areas where the student would benefit from more explanation or guided examples>",
+"learning_progress": "<describe whether understanding seems to be improving, regressing, or stable across recent turns>",
+"reasoning_pattern": "<describe the student's thinking style — e.g., logical step-by-step, intuitive, memorization-based, or confused reasoning>",
+"learning_style": "<if inferable, specify preferred learning style: visual, verbal, example-based, conceptual, or unknown>",
+"confidence_level": "<low / medium / high — based on phrasing, certainty, and tone>",
+"subtopics": "<specific units, chapters, or subtopics discussed>",
+"prerequisite_gaps": ["<foundational topics or concepts the student appears to lack, affecting their understanding>",
+"student_tone": "<describe how the student communicates — e.g., curious, anxious, confident, formal, casual, frustrated, polite, etc.>",
+"effective_response_tone": "<describe the ideal tone, pacing, and explanation style the assistant should use to make content most understandable to this student>",
+"preferred_explanation_format": "<what type of explanation works best — e.g., examples-first, step-by-step, summary-first, question-led>",
+"engagement_level": "<low / medium / high — based on interaction length, enthusiasm, and curiosity>",
+"emotional_state": "<optional: describe detected emotional cues, e.g., motivated, anxious, frustrated, excited>"
+
 There are specific guidelines to select which operation to perform:
 
 1. **Add**: If the retrieved facts contain new information not present in the memory, then you have to add it by generating a new ID in the id field.
@@ -191,6 +215,7 @@ There are specific guidelines to select which operation to perform:
         [
             {
                 "id" : "0",
+                "category": "fact",
                 "text" : "User is a software engineer"
             }
         ]
@@ -201,21 +226,29 @@ There are specific guidelines to select which operation to perform:
                 {
                     "id" : "0",
                     "text" : "User is a software engineer",
+                    "category": "fact",
+                    "subject": "NONE",
+                    "topics": "NONE",  
                     "event" : "NONE"
                 },
                 {
                     "id" : "1",
                     "text" : "Name is John",
+                    "category": "fact",
+                    subject": "NONE",
+                    "topics": "NONE",
                     "event" : "ADD"
                 }
             ]
 
         }
 
-2. **Update**: If the retrieved facts contain information that is already present in the memory but the information is totally different, then you have to update it. 
+2. **Update**: If the retrieved facts contain information that is already present in the memory but the information is totally different, then you have to update it.
+You might also need to update the category/tag based on the new information.
 If the retrieved fact contains information that conveys the same thing as the elements present in the memory, then you have to keep the fact which has the most information. 
 Example (a) -- if the memory contains "User likes to play cricket" and the retrieved fact is "Loves to play cricket with friends", then update the memory with the retrieved facts.
 Example (b) -- if the memory contains "Likes cheese pizza" and the retrieved fact is "Loves cheese pizza", then you do not need to update it because they convey the same information.
+Example (c) -- if the memory contains "Student didn't understand topic A" and the retrieved fact is "Student understood topic A", then you have to update category of "misunderstandings" and "student_understandings" appropriately.
 If the direction is to update the memory, then you have to update it.
 Please keep in mind while updating you have to keep the same ID.
 Please note to return the IDs in the output from the input IDs only and do not generate any new ID.
@@ -224,15 +257,24 @@ Please note to return the IDs in the output from the input IDs only and do not g
         [
             {
                 "id" : "0",
-                "text" : "I really like cheese pizza"
+                "text" : "I really like cheese pizza",
+                "category": "fact",
+                "subject": "NONE",
+                "topics": "NONE"
             },
             {
                 "id" : "1",
-                "text" : "User is a software engineer"
+                "text" : "User is a software engineer",
+                "category": "fact",
+                "subject": "NONE",
+                "topics": "NONE"
             },
             {
                 "id" : "2",
-                "text" : "User likes to play cricket"
+                "text" : "User likes to play cricket",
+                "category": "fact",
+                "subject": "NONE",
+                "topics": "NONE"
             }
         ]
     - Retrieved facts: ["Loves chicken pizza", "Loves to play cricket with friends"]
@@ -243,18 +285,27 @@ Please note to return the IDs in the output from the input IDs only and do not g
                     "id" : "0",
                     "text" : "Loves cheese and chicken pizza",
                     "event" : "UPDATE",
-                    "old_memory" : "I really like cheese pizza"
+                    "old_memory" : "I really like cheese pizza",
+                    "category": "fact",
+                    "subject": "NONE",
+                    "topics": "NONE"
                 },
                 {
                     "id" : "1",
                     "text" : "User is a software engineer",
-                    "event" : "NONE"
+                    "event" : "NONE",
+                    "category": "fact".
+                    "subject": "NONE",
+                    "topics": "NONE"
                 },
                 {
                     "id" : "2",
                     "text" : "Loves to play cricket with friends",
                     "event" : "UPDATE",
-                    "old_memory" : "User likes to play cricket"
+                    "old_memory" : "User likes to play cricket",
+                    "category": "fact",
+                    "subject": "NONE",
+                    "topics": "NONE"
                 }
             ]
         }
@@ -267,11 +318,17 @@ Please note to return the IDs in the output from the input IDs only and do not g
         [
             {
                 "id" : "0",
-                "text" : "Name is John"
+                "text" : "Name is John",
+                "category": "fact",
+                "subject": "NONE",
+                "topics": "NONE"
             },
             {
                 "id" : "1",
-                "text" : "Loves cheese pizza"
+                "text" : "Loves cheese pizza",
+                "category": "fact",
+                "subject": "NONE",
+                "topics": "NONE"
             }
         ]
     - Retrieved facts: ["Dislikes cheese pizza"]
@@ -281,12 +338,18 @@ Please note to return the IDs in the output from the input IDs only and do not g
                 {
                     "id" : "0",
                     "text" : "Name is John",
-                    "event" : "NONE"
+                    "event" : "NONE",
+                    "category": "fact",
+                    "subject": "NONE",
+                    "topics": "NONE"
                 },
                 {
                     "id" : "1",
                     "text" : "Loves cheese pizza",
-                    "event" : "DELETE"
+                    "event" : "DELETE",
+                    "category": "fact",
+                    "subject": "NONE",
+                    "topics": "NONE"
                 }
         ]
         }
@@ -297,11 +360,17 @@ Please note to return the IDs in the output from the input IDs only and do not g
         [
             {
                 "id" : "0",
-                "text" : "Name is John"
+                "text" : "Name is John",
+                "category": "fact",
+                "subject": "NONE",
+                "topics": "NONE"
             },
             {
                 "id" : "1",
-                "text" : "Loves cheese pizza"
+                "text" : "Loves cheese pizza",
+                "category": "fact",
+                "subject": "NONE",
+                "topics": "NONE"
             }
         ]
     - Retrieved facts: ["Name is John"]
@@ -311,15 +380,23 @@ Please note to return the IDs in the output from the input IDs only and do not g
                 {
                     "id" : "0",
                     "text" : "Name is John",
-                    "event" : "NONE"
+                    "event" : "NONE",
+                    "category": "fact"
+                    "subject": "NONE",
+                    "topics": "NONE"
                 },
                 {
                     "id" : "1",
                     "text" : "Loves cheese pizza",
-                    "event" : "NONE"
+                    "event" : "NONE",
+                    "category": "fact",
+                    "subject": "NONE",
+                    "topics": "NONE"
                 }
             ]
         }
+
+Remember, every change you make to the memory must be justified based on the retrieved subject and topic. the category/tags are independent for each subject/topic being discussed, so take actions on memory of same subject/topic being discussed.
 """
 
 PROCEDURAL_MEMORY_SYSTEM_PROMPT = """
@@ -427,7 +504,7 @@ def get_update_memory_messages(retrieved_old_memory_dict, response_content, cust
 
     {current_memory_part}
 
-    The new retrieved facts are mentioned in the triple backticks. You have to analyze the new retrieved facts and determine whether these facts should be added, updated, or deleted in the memory.
+    The new retrieved facts and their categories are mentioned in the triple backticks. You have to analyze the new retrieved facts and determine whether these facts and/or their categories should be added, updated, or deleted in the memory.
 
     ```
     {response_content}
@@ -442,6 +519,7 @@ def get_update_memory_messages(retrieved_old_memory_dict, response_content, cust
                 "text" : "<Content of the memory>",         # Content of the memory
                 "event" : "<Operation to be performed>",    # Must be "ADD", "UPDATE", "DELETE", or "NONE"
                 "old_memory" : "<Old memory content>"       # Required only if the event is "UPDATE"
+                "category": "<category/tag of the memory>"  # Category/tag for the memory
             }},
             ...
         ]

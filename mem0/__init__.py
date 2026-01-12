@@ -1,6 +1,10 @@
-import importlib.metadata
+# mem0/__init__.py
+from mem0.client.main import AsyncMemoryClient, MemoryClient
+from mem0.memory.main import AsyncMemory, Memory
 
-__version__ = importlib.metadata.version("mem0ai")
-
-from mem0.client.main import AsyncMemoryClient, MemoryClient  # noqa
-from mem0.memory.main import AsyncMemory, Memory  # noqa
+__all__ = [
+    "Memory",
+    "AsyncMemory",
+    "MemoryClient",
+    "AsyncMemoryClient",
+]

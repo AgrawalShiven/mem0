@@ -171,6 +171,7 @@ logger = logging.getLogger(__name__)
 
 class Memory(MemoryBase):
     def __init__(self, config: MemoryConfig = MemoryConfig()):
+        print("Initializing Memory with config Shiven",)
         self.config = config
 
         self.custom_fact_extraction_prompt = self.config.custom_fact_extraction_prompt
@@ -447,10 +448,24 @@ class Memory(MemoryBase):
                 try:
                     # First try direct JSON parsing
                     new_retrieved_facts = json.loads(response)["facts"]
+                    subject = json.loads(response).get("subject")
+                    topics = json.loads(response).get("topics")
+                    for fact in new_retrieved_facts:
+                        if subject:
+                            fact["subject"] = subject
+                        if topics:
+                            fact["topics"] = topics
                 except json.JSONDecodeError:
                     # Try extracting JSON from response using built-in function
                     extracted_json = extract_json(response)
                     new_retrieved_facts = json.loads(extracted_json)["facts"]
+                    subject = json.loads(extracted_json).get("subject")
+                    topics = json.loads(extracted_json).get("topics")
+                    for fact in new_retrieved_facts:
+                        if subject:
+                            fact["subject"] = subject
+                        if topics:
+                            fact["topics"] = topics
         except Exception as e:
             logger.error(f"Error in new_retrieved_facts: {e}")
             new_retrieved_facts = []
@@ -459,6 +474,7 @@ class Memory(MemoryBase):
             logger.debug("No new facts retrieved from input. Skipping memory update LLM call.")
 
         retrieved_old_memory = []
+        facts_with_metadata = []
         new_message_embeddings = {}
         # Search for existing memories using the provided session identifiers
         # Use all available session identifiers for accurate memory retrieval
@@ -470,14 +486,31 @@ class Memory(MemoryBase):
         if filters.get("run_id"):
             search_filters["run_id"] = filters["run_id"]
         for new_mem in new_retrieved_facts:
-            messages_embeddings = self.embedding_model.embed(new_mem, "add")
-            new_message_embeddings[new_mem] = messages_embeddings
+            text = new_mem["text"]
+            if isinstance(text, list):
+                text = ", ".join(str(t) for t in text)
+            else:
+                text = str(text)
+            per_msg_meta_1 = deepcopy(metadata)
+            if new_mem["category"]:
+                per_msg_meta_1["category"] = new_mem["category"]
+            if new_mem.get("subject"):
+                per_msg_meta_1["subject"] = new_mem["subject"]
+            if new_mem.get("topics"):
+                per_msg_meta_1["topics"] = new_mem["topics"]
+            messages_embeddings = self.embedding_model.embed(text, "add")
+            new_message_embeddings[text] = messages_embeddings
+            facts_with_metadata.append({
+                "text": text,
+                "metadata": per_msg_meta_1,
+            })
             existing_memories = self.vector_store.search(
-                query=new_mem,
+                query=text,
                 vectors=messages_embeddings,
-                limit=5,
+                limit=2,
                 filters=search_filters,
             )
+            print(len(existing_memories))
             for mem in existing_memories:
                 retrieved_old_memory.append({"id": mem.id, "text": mem.payload.get("data", "")})
 
@@ -486,6 +519,8 @@ class Memory(MemoryBase):
             unique_data[item["id"]] = item
         retrieved_old_memory = list(unique_data.values())
         logger.info(f"Total existing memories: {len(retrieved_old_memory)}")
+        with open("/Users/shivenagrawal/Desktop/project_mem0/mem0/mem0/mem0_retrieved_old_memory.json", "w") as f:
+            f.write("retrieved_old_memory: " + json.dumps(retrieved_old_memory))
 
         # mapping UUIDs with integers for handling UUID hallucinations
         temp_uuid_mapping = {}
@@ -495,7 +530,7 @@ class Memory(MemoryBase):
 
         if new_retrieved_facts:
             function_calling_prompt = get_update_memory_messages(
-                retrieved_old_memory, new_retrieved_facts, self.config.custom_update_memory_prompt
+                retrieved_old_memory, facts_with_metadata, self.config.custom_update_memory_prompt
             )
 
             try:
@@ -503,6 +538,8 @@ class Memory(MemoryBase):
                     messages=[{"role": "user", "content": function_calling_prompt}],
                     response_format={"type": "json_object"},
                 )
+                with open("/Users/shivenagrawal/Desktop/project_mem0/mem0/mem0/mem0_invalid_response.json", "w") as f:
+                    f.write("response: " + response)
             except Exception as e:
                 logger.error(f"Error in new memory actions response: {e}")
                 response = ""
@@ -515,7 +552,12 @@ class Memory(MemoryBase):
                     response = remove_code_blocks(response)
                     new_memories_with_actions = json.loads(response)
             except Exception as e:
-                logger.error(f"Invalid JSON response: {e}")
+                try:
+                    with open("/Users/shivenagrawal/Desktop/project_mem0/mem0/mem0/mem0_invalid_response.json", "w") as f:
+                        f.write("llm response: " + response)
+                except Exception as file_e:
+                    logger.error(f"Failed to log invalid response: {file_e}")
+                logger.error(f"Invalid JSON  response: {e}")
                 new_memories_with_actions = {}
         else:
             new_memories_with_actions = {}
@@ -529,21 +571,32 @@ class Memory(MemoryBase):
                     if not action_text:
                         logger.info("Skipping memory entry because of empty `text` field.")
                         continue
-
                     event_type = resp.get("event")
+                    category = resp.get("category")
+                    subject = resp.get("subject")
+                    topics = resp.get("topics")
+                    # ---- prepare per-memory metadata ----
+                    fact_metadata = next((f["metadata"] for f in facts_with_metadata if f["text"] == action_text), deepcopy(metadata))
+                    per_memory_metadata = deepcopy(fact_metadata)
+                    if category:
+                        per_memory_metadata["category"] = category
+                    if subject:
+                        per_memory_metadata["subject"] = subject
+                    if topics:
+                        per_memory_metadata["topics"] = topics
                     if event_type == "ADD":
                         memory_id = self._create_memory(
                             data=action_text,
                             existing_embeddings=new_message_embeddings,
-                            metadata=deepcopy(metadata),
+                            metadata=per_memory_metadata,
                         )
-                        returned_memories.append({"id": memory_id, "memory": action_text, "event": event_type})
+                        returned_memories.append({"id": memory_id, "memory": action_text, "event": event_type, "category": category})
                     elif event_type == "UPDATE":
                         self._update_memory(
                             memory_id=temp_uuid_mapping[resp.get("id")],
                             data=action_text,
                             existing_embeddings=new_message_embeddings,
-                            metadata=deepcopy(metadata),
+                            metadata=per_memory_metadata,
                         )
                         returned_memories.append(
                             {
@@ -551,6 +604,9 @@ class Memory(MemoryBase):
                                 "memory": action_text,
                                 "event": event_type,
                                 "previous_memory": resp.get("old_memory"),
+                                "category": category,
+                                "subject": subject,
+                                "topics": topics,
                             }
                         )
                     elif event_type == "DELETE":
@@ -560,6 +616,9 @@ class Memory(MemoryBase):
                                 "id": temp_uuid_mapping[resp.get("id")],
                                 "memory": action_text,
                                 "event": event_type,
+                                "category": category,
+                                "subject": subject,
+                                "topics": topics,
                             }
                         )
                     elif event_type == "NONE":
@@ -799,6 +858,7 @@ class Memory(MemoryBase):
                   and potentially "relations" if graph store is enabled.
                   Example for v1.1+: `{"results": [{"id": "...", "memory": "...", "score": 0.8, ...}]}`
         """
+        print("starting search")
         _, effective_filters = _build_filters_and_metadata(
             user_id=user_id, agent_id=agent_id, run_id=run_id, input_filters=filters
         )
@@ -852,7 +912,7 @@ class Memory(MemoryBase):
 
         if self.enable_graph:
             return {"results": original_memories, "relations": graph_entities}
-
+        print("finished search")
         return {"results": original_memories}
 
     def _process_metadata_filters(self, metadata_filters: Dict[str, Any]) -> Dict[str, Any]:
@@ -1150,11 +1210,14 @@ class Memory(MemoryBase):
 
         prev_value = existing_memory.payload.get("data")
 
-        new_metadata = deepcopy(metadata) if metadata is not None else {}
+        new_metadata = deepcopy(existing_memory.payload)
+
+        if metadata:
+            new_metadata.update(metadata)
 
         new_metadata["data"] = data
         new_metadata["hash"] = hashlib.md5(data.encode()).hexdigest()
-        new_metadata["created_at"] = existing_memory.payload.get("created_at")
+        new_metadata["created_at"] = existing_memory.payload.get("created_at", existing_memory.payload.get("created_at"))
         new_metadata["updated_at"] = datetime.now(pytz.timezone("US/Pacific")).isoformat()
 
         # Preserve session identifiers from existing memory only if not provided in new metadata

@@ -18,7 +18,7 @@ class BaseLlmConfig(ABC):
         model: Optional[Union[str, Dict]] = None,
         temperature: float = 0.1,
         api_key: Optional[str] = None,
-        max_tokens: int = 2000,
+        max_tokens: int = 50000,
         top_p: float = 0.1,
         top_k: int = 1,
         enable_vision: bool = False,
