@@ -24,7 +24,7 @@ def init_memory():
         "collection": settings.QDRANT_COLLECTION,
     }
 
-from service.state.memory_state import is_initialized
+from mem0.service.state.memory_state import is_initialized
 
 
 @router.get("/status")

@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
-from service.state.memory_state import get_memory
+from mem0.service.state.memory_state import get_memory
 
 router = APIRouter(prefix="/memory", tags=["memory"])
 
@@ -27,7 +27,7 @@ def add_memory(payload: AddMemoryRequest):
 
     result = memory.add(
         user_id=payload.user_id,
-        content=payload.content,
+        messages=payload.content,
         metadata=payload.metadata or {},
     )
 

@@ -1,3 +1,20 @@
+## About this fork
+
+This is a fork of [mem0ai/mem0](https://github.com/mem0ai/mem0). It adds a small FastAPI memory service under `mem0/service`:
+
+- `main.py`: the FastAPI app, with a `/health` route.
+- `api/config.py`: `GET /config/init` builds a `Memory` from the settings and `GET /config/status` reports whether it is initialized.
+- `api/memory.py`: `POST /memory/add` and `POST /memory/search` for a given `user_id`.
+- `settings.py`: pydantic settings read from the environment or `.env` (`QDRANT_URL` and `QDRANT_API_KEY` are required; LLM and embedder default to Gemini, vector store is Qdrant).
+- `state/memory_state.py`: holds the initialized `Memory` instance in process.
+- `custom_fact_extraction_prompt.txt`: a custom fact-extraction prompt for student/tutor conversations.
+
+It also adjusts prompts in `mem0/configs/prompts.py`. This fork was the starting point for a multi-agent student-memory system built privately at GenEd.
+
+To run the service (from the repository root, with the dependencies installed and `QDRANT_URL`/`QDRANT_API_KEY` set): `uvicorn mem0.service.main:app --port 8000`, then call `GET /config/init` before using the `/memory` routes.
+
+---
+
 <p align="center">
   <a href="https://github.com/mem0ai/mem0">
     <img src="docs/images/banner-sm.png" width="800px" alt="Mem0 - The Memory Layer for Personalized AI">
