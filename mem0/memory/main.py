@@ -509,7 +509,7 @@ class Memory(MemoryBase):
                 limit=2,
                 filters=search_filters,
             )
-            print(len(existing_memories))
+            logger.debug(f"Found {len(existing_memories)} existing memories for this message")
             for mem in existing_memories:
                 retrieved_old_memory.append({"id": mem.id, "text": mem.payload.get("data", "")})
 
@@ -518,8 +518,7 @@ class Memory(MemoryBase):
             unique_data[item["id"]] = item
         retrieved_old_memory = list(unique_data.values())
         logger.info(f"Total existing memories: {len(retrieved_old_memory)}")
-        with open("/Users/shivenagrawal/Desktop/project_mem0/mem0/mem0/mem0_retrieved_old_memory.json", "w") as f:
-            f.write("retrieved_old_memory: " + json.dumps(retrieved_old_memory))
+        logger.debug(f"Retrieved old memories: {json.dumps(retrieved_old_memory)}")
 
         # mapping UUIDs with integers for handling UUID hallucinations
         temp_uuid_mapping = {}
@@ -537,8 +536,7 @@ class Memory(MemoryBase):
                     messages=[{"role": "user", "content": function_calling_prompt}],
                     response_format={"type": "json_object"},
                 )
-                with open("/Users/shivenagrawal/Desktop/project_mem0/mem0/mem0/mem0_invalid_response.json", "w") as f:
-                    f.write("response: " + response)
+                logger.debug(f"Memory update LLM response: {response}")
             except Exception as e:
                 logger.error(f"Error in new memory actions response: {e}")
                 response = ""
@@ -551,11 +549,7 @@ class Memory(MemoryBase):
                     response = remove_code_blocks(response)
                     new_memories_with_actions = json.loads(response)
             except Exception as e:
-                try:
-                    with open("/Users/shivenagrawal/Desktop/project_mem0/mem0/mem0/mem0_invalid_response.json", "w") as f:
-                        f.write("llm response: " + response)
-                except Exception as file_e:
-                    logger.error(f"Failed to log invalid response: {file_e}")
+                logger.debug(f"Invalid LLM response: {response}")
                 logger.error(f"Invalid JSON  response: {e}")
                 new_memories_with_actions = {}
         else:
@@ -857,7 +851,6 @@ class Memory(MemoryBase):
                   and potentially "relations" if graph store is enabled.
                   Example for v1.1+: `{"results": [{"id": "...", "memory": "...", "score": 0.8, ...}]}`
         """
-        print("starting search")
         _, effective_filters = _build_filters_and_metadata(
             user_id=user_id, agent_id=agent_id, run_id=run_id, input_filters=filters
         )
@@ -911,7 +904,6 @@ class Memory(MemoryBase):
 
         if self.enable_graph:
             return {"results": original_memories, "relations": graph_entities}
-        print("finished search")
         return {"results": original_memories}
 
     def _process_metadata_filters(self, metadata_filters: Dict[str, Any]) -> Dict[str, Any]:
